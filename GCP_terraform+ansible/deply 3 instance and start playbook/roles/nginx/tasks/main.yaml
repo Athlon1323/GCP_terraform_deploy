@@ -1,0 +1,14 @@
+---
+    - name: Install Nginx
+      apt:
+        name: nginx
+        state: present
+      notify:
+        - Start Nginx
+
+    - name: Configure Nginx
+      template:
+        src: index.html
+        dest: /var/www/html/index.html
+      notify:
+        - Restart Nginx
