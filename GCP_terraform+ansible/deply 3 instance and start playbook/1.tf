@@ -31,7 +31,7 @@ resource "google_compute_firewall" "web" {
 
 resource "google_compute_instance" "web_servers" {
   count        = 3
-  name         = "nginx-ans-ter-${count.index + 1}"
+  name         = "nginx-ans-ter-${count.index}"
   machine_type = "f1-micro" 
   zone         = local.zone
 
@@ -51,11 +51,22 @@ resource "google_compute_instance" "web_servers" {
 }
 
 resource "null_resource" "instance_cfg" {
- count = length(google_compute_instance.web_servers)
+ count = length(google_compute_instance.web_servers.*.name)
+ depends_on = [google_compute_instance.web_servers]
+
 
   provisioner "remote-exec" {
-    inline = ["echo 'Wait until SSH is ready'",
-    "sudo apt update",
+    inline = ["echo 'Wait until SSH is ready'"]
+    
+    connection {
+      type        = "ssh"
+      user        = local.ssh_user
+      private_key = file(local.private_key_path)
+      host = google_compute_instance.web_servers[count.index].network_interface[0].access_config[0].nat_ip
+    }
+  }
+    provisioner "remote-exec" {
+    inline = ["sudo apt update",
     "sudo apt install ansible -y"
     ]
     
@@ -63,7 +74,8 @@ resource "null_resource" "instance_cfg" {
       type        = "ssh"
       user        = local.ssh_user
       private_key = file(local.private_key_path)
-      host        = google_compute_instance.web_servers[count.index+1].network_interface[0].access_config[0].nat_ip
+      #host = google_compute_instance.web_servers[count.index+1].network_interface[0].access_config[0].nat_ip
+      host = google_compute_instance.web_servers[count.index].network_interface[0].access_config[0].nat_ip
     }
   }
 }
@@ -77,7 +89,7 @@ ${join("\n", [for instance in google_compute_instance.web_servers : instance.net
 }
 
 resource "null_resource" "run_ansible" {
-
+   depends_on = [null_resource.instance_cfg]
   provisioner "local-exec" {
     command = "ansible-playbook -i inventory.ini nginx_playbook.yml"
   }
