@@ -1,7 +1,7 @@
 ---
 - name: Deploy Nginx
-  hosts: nginx_servers
-  remote_user: ansible
+  hosts: web_servers
+  remote_user: keskus
   become: yes
 
   roles:
